@@ -3,7 +3,7 @@
 Import-Module "$($PSScriptRoot)\Tools-DataBase\SpaceCluster-Database.psm1"
 Import-Module "$($PSScriptRoot)\modules\SpaceCluster-LeftMenu.psm1"
 
-$Role = 'root'
+$Role = 'Administrator'
 
 $Form               = [System.Windows.Forms.Form]::new()
 $Form.Text          = 'Space Cluster'
