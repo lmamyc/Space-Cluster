@@ -1,10 +1,89 @@
-﻿Function SpaceClusterConnectionDataBase {
+﻿#Use
+Function SpaceClusterConnectionDataBase {
     Add-Type -Path "$($PSScriptRoot)\System.Data.SQLite.dll"
     $Connection = New-Object System.Data.SQLite.SQLiteConnection
     $Connection.ConnectionString = "Data Source=$(Split-Path -Path $PSScriptRoot)\SpaceCluster.db;Version=3;"
     $Connection.Open()
     Return $Connection
 }
+Function SpaceClusterDeleteContentRaw {
+    $Connection = SpaceClusterConnectionDataBase
+    $Command = $Connection.CreateCommand()
+    $Command.CommandText = "SELECT * FROM Content"
+    $Reader = $Command.ExecuteReader()
+    $Content = @()
+
+    While ($Reader.Read()) {
+        $ContentId     = $Reader.GetValue(0)
+        $ContentObject = $Reader.GetValue(1)
+        $ContentName   = $Reader.GetValue(2)
+        $ContentCode   = $Reader.GetValue(3)
+
+        $ContentRaw = [PSCustomObject]@{
+            ID     = $ContentId
+            Object = $ContentObject
+            Name   = $ContentName
+            Code   = $ContentCode
+        }
+        $Content += $ContentRaw
+    }
+
+    $Reader.Close()
+    $Connection.Close()
+
+    $SelectDeleteContent = $Content | Out-GridView -Title 'Table content' -PassThru
+
+    If ($SelectDeleteContent) {
+        $ResultDeleteContent = [System.Windows.Forms.MessageBox]::Show(
+            "Удалить строку ? `n$($SelectDeleteContent.ID)) $($SelectDeleteContent.Object) $($SelectDeleteContent.Name)",
+            "DELETE RAW",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Question
+        )
+
+        If ($ResultDeleteContent -eq [System.Windows.Forms.DialogResult]::Yes) {
+            try {
+                $Connection = SpaceClusterConnectionDataBase
+                $Command = $Connection.CreateCommand()
+                $Command.CommandText = "DELETE FROM Content WHERE ID=$($SelectDeleteContent.ID);"
+                $Command.ExecuteNonQuery()
+                $Connection.Close()
+
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Удалено",
+                    "DELETE RAW",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::None
+                )
+            }
+            catch {
+                [System.Windows.Forms.MessageBox]::Show(
+                    "$($_)",
+                    "DELETE RAW",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Error
+                )
+            }
+        }
+    }
+}
+Function SpaceClusterSelectGetCodeContent {
+    Param([string]$Object,[string]$Name)
+    $Connection = SpaceClusterConnectionDataBase
+    $Command = $Connection.CreateCommand()
+    $Command.CommandText = "SELECT Content FROM Content WHERE Object = @Object AND Name = @Name"
+        $Command.Parameters.AddWithValue("@Object", $Object) | Out-Null
+        $Command.Parameters.AddWithValue("@Name", $Name) | Out-Null
+    $Reader = $Command.ExecuteReader()
+    $ImageHashtable = @{}
+    while ($reader.Read()) {
+        $Content = $reader.GetValue(0)
+        Return $Content
+    }
+    $Reader.Close()
+    $Connection.Close()
+}
+
 Function CreateUser {
     Param([string]$Name,[string]$Fullname)
     $Connection = SpaceClusterConnectionDataBase
@@ -24,6 +103,7 @@ Function CreateGroup {
     $command.ExecuteNonQuery()
     $Connection.Close()
 }
+
 Function SpaceClusterAddContent {
     Param([string]$Object,[string]$Name,[string]$Content)
     $Connection = SpaceClusterConnectionDataBase
@@ -35,22 +115,7 @@ Function SpaceClusterAddContent {
     $Command.ExecuteNonQuery()
     $Connection.Close()
 }
-Function SpaceClusterSelectGetContent {
-    Param([string]$Object,[string]$Name)
-    $Connection = SpaceClusterConnectionDataBase
-    $Command = $Connection.CreateCommand()
-    $Command.CommandText = "SELECT Content FROM Content WHERE Object = @Object AND Name = @Name"
-        $Command.Parameters.AddWithValue("@Object", $Object) | Out-Null
-        $Command.Parameters.AddWithValue("@Name", $Name) | Out-Null
-    $Reader = $Command.ExecuteReader()
-    $ImageHashtable = @{}
-    while ($reader.Read()) {
-        $Content = $reader.GetValue(0)
-        Return $Content
-    }
-    $Reader.Close()
-    $Connection.Close()
-}
+
 Function SpaceClusterSelectDataBaseUser {
     Param(
         [string]$User
@@ -97,28 +162,5 @@ Function SpaceClusterSelectDataBaseImage {
     $Connection.Close()
     Return $ImageHashtable
 }
-Function SpaceClusterViewImageTable {
-    Param(
-        [string]$Name
-    )
-    $Connection = SpaceClusterConnectionDataBase
-    $Command = $Connection.CreateCommand()
-    $Command.CommandText = "SELECT * FROM Images"
-    $Reader = $Command.ExecuteReader()
-    $ImageArray = @()
 
-    While ($Reader.Read()) {
-        $ImageId = $Reader.GetValue(0)
-        $ImageName = $Reader.GetValue(1)
-        $ImageCode = $Reader.GetValue(2)
-        $ImageObject = [PSCustomObject]@{
-            ID = $ImageId
-            Name = $ImageName
-            Code = $ImageCode
-        }
-        $ImageArray += $ImageObject
-    }
-    $Reader.Close()
-    $Connection.Close()
-    $ImageArray | Out-GridView -Title 'Table images'
-}
+#use
